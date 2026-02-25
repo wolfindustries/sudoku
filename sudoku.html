@@ -4,20 +4,26 @@
         html 
         {
             font-family:Arial, Helvetica, sans-serif;
+            background-color:#333;
         }
         div#main {
             width:600px;
             height:600px;
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            grid-template-rows: 1fr 1fr 1fr;
+            position:absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -49%);
         }
 
         div.section {
+            border:2px solid #000;
+        }
+
+        div#main, div.section {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
             grid-template-rows: 1fr 1fr 1fr;
-            border:2px solid #000;
+            grid-auto-flow: column;
         }
 
         div.cell {
@@ -26,6 +32,7 @@
             align-items: center;
             border:1px solid #000;
             margin:-1px -1px 0 0;
+            background-color:#fff;
         }
 
         div.cell p.display {
@@ -56,108 +63,9 @@ document.addEventListener("DOMContentLoaded", ()=> {
 function setupSudoku()
 {
     let main = document.getElementById("main");
+    let sudoku = new Sudoku(main);
 
-    let arr = new Array();
-    for(var gridX = 0; gridX < 3; gridX++)
-    {
-        arr[gridX] = new Array();
-        for(var gridY = 0; gridY < 3; gridY++)
-        {
-            arr[gridX][gridY] = new Array();
-
-            var section = document.createElement("div");
-            section.setAttribute("class", "section");
-
-            for(var cellX = 0; cellX < 3; cellX++)
-            {
-                arr[gridX][gridY][cellX] = new Array();
-                for(cellY = 0; cellY < 3; cellY++)
-                {
-                    var cell = document.createElement("div");
-                    cell.setAttribute("class", "cell");
-
-                    var p = document.createElement("p");
-                    p.innerText = "0";
-                    p.setAttribute("class", "display");
-                    cell.append(p);
-
-                    var pAlt = document.createElement("p");
-                    pAlt.innerText = gridX + " " + gridY + " " + cellX + " " + cellY;
-                    pAlt.setAttribute("class", "hint");
-                    cell.append(pAlt);
-                    
-                    section.append(cell);
-                    
-                    arr[gridX][gridY][cellX][cellY] = cell;
-                }
-            }
-
-            main.append(section);
-        }
-    }
-
-    generateBoard();
-}
-
-function generateBoard()
-{
-    for(gX = 0; gX < 3; gX++)
-    {
-        for(gY = 0; gY < 3; gY++) 
-        {
-            var sectionVals = Array();
-            for(i = 0; i < 10; i++)
-            {
-                sectionVals.push(i);
-            }
-
-            for(cX = 0; cX < 3; cX++)
-            {
-                for(cY = 0; cY < 3; cY++)
-                {
-                    var val = sectionVals[Math.Floor(Math.random() * sectionVals.length)];
-
-                    if(_checkColFor(gX, cX, val) && _checkRowFor(gY, cY, val))
-                    {
-                        
-                    }
-                }
-            }
-        }
-    }
-}
-
-function _checkColFor(gY, cY, val)
-{
-    switch(gY)
-    {
-        case 0:
-        case 3:
-        case 6:
-            for(var i = 0; i < 10; i+3)
-            {
-
-            }
-        break;
-        case 1:
-        case 4:
-        case 7:
-            for(var i = 1; i < 10; i+3)
-            {
-                
-            }
-        break;
-        case 2:
-        case 5:
-        case 8:
-            for(var i = 2; i < 10; i+3)
-            {
-                //if()
-            }
-        break;
-    }
-
-    return true;
+    //generateBoard();
 }
 
 function _checkRowFor(gY, cY, val)
@@ -166,8 +74,169 @@ function _checkRowFor(gY, cY, val)
 }
 
 class Cell {
-    constructor() {
-        
+    constructor(gridX, gridY, cellX, cellY) {
+        this.div = document.createElement("div");
+        this.div.setAttribute("class", "cell");
+
+        this.display = document.createElement("p");
+        this.display.innerText = "0";
+        this.display.setAttribute("class", "display");
+        this.div.append(this.display);
+
+        this.hint = document.createElement("p");
+        this.hint.innerText = gridX + "," + gridY + " " + cellX + "," + cellY;
+        this.hint.setAttribute("class", "hint");
+        this.div.append(this.hint);
+
+        this.gridX = gridX;
+        this.gridY = gridY;
+        this.cellX = cellX;
+        this.cellY = cellY;
+
+        this.canChange = true;
+        this.currentValue = 0;
+        this.setCurrentValue(0);
     }
+
+    setCurrentValue(val)
+    {
+        if(this.canChange) {
+            this.currentValue = val;
+            this.display.innerText = "" + val;
+        }
+    }
+
+    setCanChange(val)
+    {
+        this.canChange = val;
+    }
+}
+
+class Sudoku {
+    constructor(parent) {
+        this.parent = parent;
+        this.grid = Array();
+
+        this.build();
+    }
+
+    build() {
+        for(var gridX = 0; gridX < 3; gridX++)
+        {
+            for(var gridY = 0; gridY < 3; gridY++)
+            {
+                var section = document.createElement("div");
+                section.setAttribute("class", "section");
+
+                for(var cellX = 0; cellX < 3; cellX++)
+                {
+                    for(var cellY = 0; cellY < 3; cellY++)
+                    {
+                        var cell = new Cell(gridX, gridY, cellX, cellY);
+                        section.append(cell.div);
+                        
+                        this.addToArr(gridX, gridY, cellX, cellY, cell);
+                    }
+                }
+
+                main.append(section);
+            }
+        }
+
+        this.populateBoard();
+    }
+
+    addToArr(gridX, gridY, cellX, cellY, cell)
+    {
+        if(!this.grid[gridX])
+        {
+            this.grid[gridX] = new Array();
+        }
+        if(!this.grid[gridX][gridY])
+        {
+            this.grid[gridX][gridY] = new Array();
+        }
+        if(!this.grid[gridX][gridY][cellX])
+        {
+            this.grid[gridX][gridY][cellX] = new Array();
+        }
+
+        this.grid[gridX][gridY][cellX][cellY] = cell;
+    }
+
+    assignValue(gX, gY, cX, cY, values, stackDepth = 0)
+    {
+        while(stackDepth < 10) {
+            var randomValue = Math.floor(Math.random() * values.length);
+
+            if(this.checkColFor(gX, cX, values[randomValue]) && this.checkRowFor(gY, cY, values[randomValue])) {
+                this.grid[gX][gY][cX][cY].setCurrentValue(values[randomValue])
+                values.splice(randomValue, 1);
+                return;
+            }
+
+            stackDepth++;
+        }
+        console.log("ERRORED OUT");
+    }
+
+    checkColFor(gX, cX, val)
+    {
+        for(var gY = 0; gY < 3; gY++)
+        {
+            for(var cY = 0; cY < 3; cY++)
+            {
+                if(this.grid[gX][gY][cX][cY].currentValue == val)
+                {
+                    console.log("duplicate found");
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    checkRowFor(gY, cY, val)
+    {
+        for(var gX = 0; gX < 3; gX++)
+        {
+            for(var cX = 0; cX < 3; cX++)
+            {
+                if(this.grid[gX][gY][cX][cY].currentValue == val)
+                {
+                    console.log("duplicate found");
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    populateBoard()
+    {
+        for(var gX = 0; gX < 3; gX++)
+        {
+            for(var gY = 0; gY < 3; gY++) 
+            {
+                console.log('boop');
+                var sectionVals = Array();
+                for(var i = 0; i < 10; i++)
+                {
+                    sectionVals.push(i);
+                }
+
+                for(var cX = 0; cX < 3; cX++)
+                {
+                    for(var cY = 0; cY < 3; cY++)
+                    {
+                        this.assignValue(gX, gY, cX, cY, sectionVals);
+                    }
+                }
+            }
+        }
+    }
+
 }
 </script>
