@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<head>
+    <style type="text/css">
+        html 
+        {
+            font-family:Arial, Helvetica, sans-serif;
+        }
+        div#main {
+            width:600px;
+            height:600px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+        }
+
+        div.section {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+            border:2px solid #000;
+        }
+
+        div.cell {
+            display:flex;
+            justify-content: center;
+            align-items: center;
+            border:1px solid #000;
+            margin:-1px -1px 0 0;
+        }
+
+        div.cell p.display {
+            margin:0;
+            padding:0;
+            font-size:2em;  
+            text-align: center;
+        }
+
+        div.cell p.hint {
+            margin:0 0 2.8em 0;
+            padding:0;
+            font-size:1em;
+            text-align: center;
+            position:absolute;
+        }
+    </style>
+</head>
+<body>
+<div id="main"></div>
+</body>
+</html>
+<script type="text/javascript">
+document.addEventListener("DOMContentLoaded", ()=> {
+    setupSudoku();
+})
+
+function setupSudoku()
+{
+    let main = document.getElementById("main");
+
+    let arr = new Array();
+    for(var gridX = 0; gridX < 3; gridX++)
+    {
+        arr[gridX] = new Array();
+        for(var gridY = 0; gridY < 3; gridY++)
+        {
+            arr[gridX][gridY] = new Array();
+
+            var section = document.createElement("div");
+            section.setAttribute("class", "section");
+
+            for(var cellX = 0; cellX < 3; cellX++)
+            {
+                arr[gridX][gridY][cellX] = new Array();
+                for(cellY = 0; cellY < 3; cellY++)
+                {
+                    var cell = document.createElement("div");
+                    cell.setAttribute("class", "cell");
+
+                    var p = document.createElement("p");
+                    p.innerText = "0";
+                    p.setAttribute("class", "display");
+                    cell.append(p);
+
+                    var pAlt = document.createElement("p");
+                    pAlt.innerText = gridX + " " + gridY + " " + cellX + " " + cellY;
+                    pAlt.setAttribute("class", "hint");
+                    cell.append(pAlt);
+                    
+                    section.append(cell);
+                    
+                    arr[gridX][gridY][cellX][cellY] = cell;
+                }
+            }
+
+            main.append(section);
+        }
+    }
+
+    generateBoard();
+}
+
+function generateBoard()
+{
+    for(gX = 0; gX < 3; gX++)
+    {
+        for(gY = 0; gY < 3; gY++) 
+        {
+            var sectionVals = Array();
+            for(i = 0; i < 10; i++)
+            {
+                sectionVals.push(i);
+            }
+
+            for(cX = 0; cX < 3; cX++)
+            {
+                for(cY = 0; cY < 3; cY++)
+                {
+                    var val = sectionVals[Math.Floor(Math.random() * sectionVals.length)];
+
+                    if(_checkColFor(gX, cX, val) && _checkRowFor(gY, cY, val))
+                    {
+                        
+                    }
+                }
+            }
+        }
+    }
+}
+
+function _checkColFor(gY, cY, val)
+{
+    switch(gY)
+    {
+        case 0:
+        case 3:
+        case 6:
+            for(var i = 0; i < 10; i+3)
+            {
+
+            }
+        break;
+        case 1:
+        case 4:
+        case 7:
+            for(var i = 1; i < 10; i+3)
+            {
+                
+            }
+        break;
+        case 2:
+        case 5:
+        case 8:
+            for(var i = 2; i < 10; i+3)
+            {
+                //if()
+            }
+        break;
+    }
+
+    return true;
+}
+
+function _checkRowFor(gY, cY, val)
+{
+
+}
+
+class Cell {
+    constructor() {
+        
+    }
+}
+</script>
