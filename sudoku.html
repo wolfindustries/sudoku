@@ -164,33 +164,92 @@ class Sudoku {
         this.grid[gridX][gridY][cellX][cellY] = cell;
     }
 
-    assignValue(gX, gY, cX, cY, values, stackDepth = 0)
+    preAssignValue(value)
     {
-        while(stackDepth < 10) {
-            var randomValue = Math.floor(Math.random() * values.length);
+        var grids = new Array();
+        var cells = new Array();
+        for(var i = 0; i < 9; i++)
+        {
+            grids.push(i);
+            cells.push(i);
+        }
 
-            if(this.checkColFor(gX, cX, values[randomValue]) && this.checkRowFor(gY, cY, values[randomValue])) {
-                this.grid[gX][gY][cX][cY].setCurrentValue(values[randomValue])
-                values.splice(randomValue, 1);
-                return;
+        var stackDepth = 0;
+        console.log("assigning " + value);
+
+        while(stackDepth < 30 && grids.length > 0 && cells.length > 0) {
+            var gPos = Math.floor(Math.random() * grids.length);
+            var gY = Math.floor(grids[gPos] / 3);
+            var gX = grids[gPos] % 3;
+            var cPos = Math.floor(Math.random() * cells.length);
+            var cY = Math.floor(cells[cPos] / 3);
+            var cX = cells[cPos] % 3;
+            console.log(grids[gPos] + " " + gX + "," + gY + " | " + cells[cPos] + " " + cX + "," + cY);
+
+            if(this.grid[gX][gY][cX][cY].currentValue == 0)
+            {
+                if(this.checkGridFor(gX, gY, value))
+                {
+                    if(this.checkColFor(gX, cX, value))
+                    {
+                        if(this.checkRowFor(gY, cY, value)) {
+                            this.grid[gX][gY][cX][cY].setCurrentValue(value);
+
+                            //console.log("remove " + grids[gPos] + " from grid");
+                            grids.splice(gPos, 1);
+                            //console.log("remove " + cells[cPos] + " from cells");
+                            cells.splice(cPos, 1);
+                        }
+                        else
+                        {
+                            //.log("dupe val in row");
+                        }
+                    }
+                    else
+                    {
+                        //.log("dupe val in col");
+                    }
+                }
+            }
+            else 
+            {
+                //console.log("value already set, retry");
             }
 
             stackDepth++;
         }
-        console.log("ERRORED OUT");
+
+        if(stackDepth > 29) 
+        {
+            console.log("error out due to stack-depth");
+        }
     }
 
     checkColFor(gX, cX, val)
     {
-        for(var gY = 0; gY < 3; gY++)
+        for(var i = 0; i < 9; i++)
         {
-            for(var cY = 0; cY < 3; cY++)
+            var gY = Math.floor(i / 3);
+            var cY = i % 3;
+            
+            if(this.grid[gX][gY][cX][cY].currentValue == val)
             {
-                if(this.grid[gX][gY][cX][cY].currentValue == val)
-                {
-                    console.log("duplicate found");
-                    return false;
-                }
+                return false;
+            }
+        }
+        return true;
+    }
+
+    checkGridFor(gX, gY, val) 
+    {
+        for(var i = 0; i < 9; i++)
+        {
+            var cY = Math.floor(i / 3);
+            var cX = i % 3;
+            
+            if(this.grid[gX][gY][cX][cY].currentValue == val)
+            {
+                return false;
             }
         }
 
@@ -199,15 +258,14 @@ class Sudoku {
 
     checkRowFor(gY, cY, val)
     {
-        for(var gX = 0; gX < 3; gX++)
+        for(var i = 0; i < 9; i++)
         {
-            for(var cX = 0; cX < 3; cX++)
+            var gX = Math.floor(i / 3);
+            var cX = i % 3;
+            
+            if(this.grid[gX][gY][cX][cY].currentValue == val)
             {
-                if(this.grid[gX][gY][cX][cY].currentValue == val)
-                {
-                    console.log("duplicate found");
-                    return false;
-                }
+                return false;
             }
         }
 
@@ -216,25 +274,18 @@ class Sudoku {
 
     populateBoard()
     {
-        for(var gX = 0; gX < 3; gX++)
+        var sectionVals = Array();
+        for(var i = 1; i < 10; i++)
         {
-            for(var gY = 0; gY < 3; gY++) 
-            {
-                console.log('boop');
-                var sectionVals = Array();
-                for(var i = 0; i < 10; i++)
-                {
-                    sectionVals.push(i);
-                }
+            sectionVals.push(i);
+        }
 
-                for(var cX = 0; cX < 3; cX++)
-                {
-                    for(var cY = 0; cY < 3; cY++)
-                    {
-                        this.assignValue(gX, gY, cX, cY, sectionVals);
-                    }
-                }
-            }
+        while(sectionVals.length > 0) {
+            var randomValue = Math.floor(Math.random() * sectionVals.length);
+
+            this.preAssignValue(sectionVals[randomValue]);
+
+            sectionVals.splice(randomValue, 1);
         }
     }
 
