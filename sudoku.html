@@ -93,6 +93,7 @@
             padding:0;
             font-size:2em;  
             text-align: center;
+            user-select:none;
         }
 
         div.cell.assignable p.display {
@@ -177,6 +178,7 @@ class Cell
         {
             this.currentValue = value;
             this.display.innerText = "" + value;
+            this.setError(false);
         }
     }
 
@@ -284,7 +286,6 @@ class Sudoku
     bindEventHandlers()
     {
         document.addEventListener("keydown", (e) => {
-            console.log(e.key);
             if(e.key >= 1 && e.key <= 9)
             {
                 if(this.currentCell != null)
@@ -401,7 +402,7 @@ class Sudoku
 
         var currentCellValue = cell.currentValue;
         
-        cells.every(iCell => {
+        cells.forEach(iCell => {
             if(iCell.currentValue == cell.currentValue)
             {
                 if(!this._isSameCell(iCell, cell))
@@ -517,19 +518,7 @@ class Sudoku
                             grids.splice(gPos, 1);
                             cells.splice(cPos, 1);
                         }
-                        else
-                        {
-                            console.log("row dupe " + gridY + " " + cellY + " " + value);
-                        }
                     }
-                    else
-                    {
-                        console.log("col dupe " + gridX + " " + cellX + " " + value);
-                    }
-                }
-                else
-                {
-                    console.log("grid dupe");
                 }
             }
 
@@ -699,7 +688,7 @@ class SudokuControls
         this.countInput.setAttribute("type", "range");
         this.countInput.setAttribute("min", 2);
         this.countInput.setAttribute("max", 80);
-        this.countInput.value = 2;
+        this.countInput.value = 40;
 
         this.countLabel.append(this.countInput);
         this.upperControls.append(this.countLabel);
