@@ -42,13 +42,14 @@
 
         div#lowerControls p.primary {
             text-align: center;
-            font-size: 1.5em;
-            margin: 0.6em 0;
+            font-size: 2.4em;
+            margin: 0.1em 0;
         }
 
         div#lowerControls p.remaining {
             text-align: right;
             position: absolute;
+            font-size:0.9em;
             top: 3px;
             right: 3px;
             margin: 0;
@@ -84,7 +85,7 @@
         }
 
         div.cell.lowlight {
-            background-color:#5d5d5d;
+            background-color:#e1e1e1;
         }
 
         div.cell p.display {
@@ -138,14 +139,11 @@ function setupSudoku()
     //generateBoard();
 }
 
-function _checkRowFor(gY, cY, val)
-{
-
-}
-
 class Cell
 {
-    constructor(gridX, gridY, cellX, cellY) {
+    constructor(sudoku, gridX, gridY, cellX, cellY) {
+        this.sudoku = sudoku;
+
         this.div = document.createElement("div");
         this.div.setAttribute("class", "cell");
 
@@ -165,22 +163,38 @@ class Cell
         this.cellY = cellY;
 
         this.playerCanChange = true;
-        this.currentValue = 0;
-        this.setCurrentValue(0);
+        this.currentValue = "";
+        this.setCurrentValue("");
+
+        this.div.addEventListener("click", () => {
+            sudoku.clickOnCell(gridX, gridY, cellX, cellY);
+        })
     }
 
     setCurrentValue(val)
     {
-        if(this.playerCanChange) {
+        if(this.playerCanChange)
+        {
             this.currentValue = val;
             this.display.innerText = "" + val;
         }
     }
 
+    setAdjacentSelected()
+    {
+        this._addClass("lowlight");
+    }
+
     setSelected() 
     {
-        _addClass("highlight");
-        _removeClass("lowLight");
+        this._addClass("highlight");
+        this._removeClass("lowlight");
+    }
+
+    setUnselected()
+    {
+        this._removeClass("highlight");
+        this._removeClass("lowlight");
     }
 
     setPlayerCanChange(val)
@@ -195,11 +209,12 @@ class Cell
 
     _removeClass(className)
     {
-        ths.div.classList.remove(className);
+        this.div.classList.remove(className);
     }
 }
 
-class ControlButton{
+class ControlButton
+{
     constructor(index)
     {
         this.index = index;
@@ -222,7 +237,8 @@ class ControlButton{
 
 class Sudoku 
 {
-    constructor(parent, upperControls, lowerControls) {
+    constructor(parent, upperControls, lowerControls)
+    {
         this.parent = parent;
         this.grid = Array();
 
@@ -234,10 +250,36 @@ class Sudoku
         this.lowerControls = lowerControls;
         this.controls = new SudokuControls(this.upperControls, this.lowerControls);
 
+        this.currentCell = null;
+
         this.build();
+
+        this.bindEventHandlers();
     }
 
-    build() {
+    bindEventHandlers()
+    {
+        document.addEventListener("keydown", (e) => {
+            if(e.key >= 0 && e.key <= 9)
+            {
+                if(this.currentCell != null)
+                {
+                    this.currentCell.setCurrentValue(e.key)
+                }
+            }
+        })
+
+        document.addEventListener("click", (e) => {
+            if(!this.parent.contains(event.target))
+            {
+                this._doThingToAllTiles(this._clearHighlightsAndLowlights);
+                this.currentCell = null;
+            }
+        })
+    }
+
+    build()
+    {
         for(var gridX = 0; gridX < 3; gridX++)
         {
             for(var gridY = 0; gridY < 3; gridY++)
@@ -249,10 +291,7 @@ class Sudoku
                 {
                     for(var cellY = 0; cellY < 3; cellY++)
                     {
-                        var cell = new Cell(gridX, gridY, cellX, cellY);
-                        cell.div.addEventListener("click", (e) =>  {
-                            e.target.setSelected();
-                        })
+                        var cell = new Cell(this, gridX, gridY, cellX, cellY);
 
                         section.append(cell.div);
                         
@@ -265,6 +304,7 @@ class Sudoku
         }
 
         this.populateBoard();
+        this.adjustToDifficulty();
     }
 
     addToArr(gridX, gridY, cellX, cellY, cell)
@@ -285,6 +325,108 @@ class Sudoku
         this.grid[gridX][gridY][cellX][cellY] = cell;
     }
 
+    adjustToDifficulty()
+    {
+        var tilesToRemove = this.controls.countInput.value;
+
+        while(tilesToRemove > 0)
+        {
+            var cell = this._getRandomCell();
+
+            if(cell.currentValue != "")
+            {
+                cell.setCurrentValue("");
+                tilesToRemove--;
+            }
+            this.buildStepsCount++;
+        }
+    }
+
+    checkColFor(gridX, cellX, val)
+    {
+        var cells = this._getCol(gridX, cellX);
+
+        cells.forEach(cell => {
+            this.buildStepsCount++;
+            
+            if(cell.currentValue == val)
+            {
+                return false;
+            }
+        })
+
+        return true;
+    }
+
+    checkGridFor(gridX, gridY, val) 
+    {
+        var cells = this._getGrid(gridX, gridY);
+
+        cells.forEach(cell => {
+            this.buildStepsCount++;
+            
+            if(cell.currentValue == val)
+            {
+                return false;
+            }
+        })
+        
+        return true;
+    }
+
+    checkRowFor(gridY, cellY, val)
+    {
+        var cells = this._getRow(gridY, cellY);
+        
+        cells.forEach(cell => {
+            this.buildStepsCount++;
+
+            if(cell.currentValue == val)
+            {
+                return false;
+            }
+        })
+
+        return true;
+    }
+
+    clearValueFromBoard(value)
+    {
+        //console.log("clearing " + value);
+        for(var i = 0; i < 9; i++)
+        {
+            var gridX = Math.floor(i / 3);
+            var gridY = i % 3;
+            for(var j = 0;  j < 9; j++) {
+                var cellX = Math.floor(j / 3);
+                var cellY = j % 3;
+                if(this.grid[gridX][gridY][cellX][cellY].currentValue == value)
+                {
+                    this.grid[gridX][gridY][cellX][cellY].setCurrentValue("");
+                }
+                this.buildStepsCount++;
+            }
+        }
+    }
+
+    clickOnCell(gridX, gridY, cellX, cellY)
+    {
+        console.log(gridX + " " + gridY);
+        this._doThingToAllTiles(this._clearHighlightsAndLowlights);
+
+        var cells = new Array();
+        cells.push(...this._getRow(gridY, cellY));
+        cells.push(...this._getCol(gridX, cellX));
+        cells.push(...this._getGrid(gridX, gridY));
+        
+        cells.forEach(cell => {
+            cell.setAdjacentSelected();
+        })
+
+        this.grid[gridX][gridY][cellX][cellY].setSelected();
+        this.currentCell = this.grid[gridX][gridY][cellX][cellY];
+    }
+
     preAssignValue(value, overallDepth = 0)
     {
         var grids = new Array();
@@ -300,22 +442,22 @@ class Sudoku
 
         while(stackDepth < 60 && grids.length > 0 && cells.length > 0) {
             var gPos = Math.floor(Math.random() * grids.length);
-            var gY = Math.floor(grids[gPos] / 3);
-            var gX = grids[gPos] % 3;
+            var gridY = Math.floor(grids[gPos] / 3);
+            var gridX = grids[gPos] % 3;
             var cPos = Math.floor(Math.random() * cells.length);
-            var cY = Math.floor(cells[cPos] / 3);
-            var cX = cells[cPos] % 3;
+            var cellY = Math.floor(cells[cPos] / 3);
+            var cellX = cells[cPos] % 3;
             this.buildStepsCount++;
-            //console.log(grids[gPos] + " " + gX + "," + gY + " | " + cells[cPos] + " " + cX + "," + cY);
+            //console.log(grids[gPos] + " " + gridX + "," + gridY + " | " + cells[cPos] + " " + cellX + "," + cellY);
 
-            if(this.grid[gX][gY][cX][cY].currentValue == 0)
+            if(this.grid[gridX][gridY][cellX][cellY].currentValue == 0)
             {
-                if(this.checkGridFor(gX, gY, value))
+                if(this.checkGridFor(gridX, gridY, value))
                 {
-                    if(this.checkColFor(gX, cX, value))
+                    if(this.checkColFor(gridX, cellX, value))
                     {
-                        if(this.checkRowFor(gY, cY, value)) {
-                            var cell = this.grid[gX][gY][cX][cY];
+                        if(this.checkRowFor(gridY, cellY, value)) {
+                            var cell = this.grid[gridX][gridY][cellX][cellY];
                             cell.setCurrentValue(value);
 
                             //console.log("remove " + grids[gPos] + " from grid");
@@ -335,8 +477,10 @@ class Sudoku
             //console.log("error out due to stack-depth");
             this.clearingCount++;
             this.clearValueFromBoard(value);
+
             overallDepth++;
-            if(overallDepth >= 5) {
+            if(overallDepth >= 5)
+            {
                 //console.log("number limit reached");
                 return false;
             }
@@ -348,75 +492,6 @@ class Sudoku
         }
         this.assigningCount++;
         return true;
-    }
-
-    checkColFor(gX, cX, val)
-    {
-        for(var i = 0; i < 9; i++)
-        {
-            var gY = Math.floor(i / 3);
-            var cY = i % 3;
-            this.buildStepsCount++;
-            
-            if(this.grid[gX][gY][cX][cY].currentValue == val)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    checkGridFor(gX, gY, val) 
-    {
-        for(var i = 0; i < 9; i++)
-        {
-            var cY = Math.floor(i / 3);
-            var cX = i % 3;
-            this.buildStepsCount++;
-            
-            if(this.grid[gX][gY][cX][cY].currentValue == val)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    checkRowFor(gY, cY, val)
-    {
-        for(var i = 0; i < 9; i++)
-        {
-            var gX = Math.floor(i / 3);
-            var cX = i % 3;
-            this.buildStepsCount++;
-            
-            if(this.grid[gX][gY][cX][cY].currentValue == val)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    clearValueFromBoard(value)
-    {
-        //console.log("clearing " + value);
-        for(var i = 0; i < 9; i++)
-        {
-            var gX = Math.floor(i / 3);
-            var gY = i % 3;
-            for(var j = 0;  j < 9; j++) {
-                var cX = Math.floor(j / 3);
-                var cY = j % 3;
-                if(this.grid[gX][gY][cX][cY].currentValue == value)
-                {
-                    this.grid[gX][gY][cX][cY].setCurrentValue(0);
-                }
-                this.buildStepsCount++;
-            }
-        }
     }
 
     populateBoard()
@@ -433,20 +508,93 @@ class Sudoku
 
             if(this.preAssignValue(sectionVals[randomValue], 0))
             {
-                console.log("assigned " + sectionVals[randomValue]);
+                //console.log("assigned " + sectionVals[randomValue]);
                 clearedVals.push(sectionVals[randomValue]);
                 sectionVals.splice(randomValue, 1);
             }
             else
             {
-                console.log("removing " + clearedVals[clearedVals.length - 1] + " and trying again");
+                //console.log("removing " + clearedVals[clearedVals.length - 1] + " and trying again");
                 this.clearValueFromBoard(clearedVals[clearedVals.length - 1]);
                 sectionVals.push(clearedVals[clearedVals.length - 1]);
                 clearedVals.pop();
             }
         }
 
-        console.log("done building board with " + this.buildStepsCount + " steps, " + this.assigningCount + " assigns, " + this.clearingCount + " clears");
+        //console.log("done building board with " + this.buildStepsCount + " steps, " + this.assigningCount + " assigns, " + this.clearingCount + " clears");
+    }
+
+    _clearHighlightsAndLowlights(el)
+    {
+        el.setUnselected();
+    }
+
+    _doThingToAllTiles(action)
+    {
+        for(var gPos = 0; gPos < 9; gPos++)
+        {
+            var gridX = Math.floor(gPos / 3);
+            var gridY = gPos % 3;
+
+            for(var cPos = 0; cPos < 9; cPos++)
+            {
+                var cellX = Math.floor(cPos / 3);
+                var cellY = cPos % 3;
+
+                action(this.grid[gridX][gridY][cellX][cellY]);
+            }            
+        }
+    }
+
+    _getCol(gridX, cellX)
+    {
+        var arr = new Array();
+        for(var gridY = 0; gridY < 3; gridY++)
+        {
+            for(var cellY = 0; cellY < 3; cellY++)
+            {
+                arr.push(this.grid[gridX][gridY][cellX][cellY]);
+            }
+        }
+        return arr;
+    }
+
+    _getGrid(gridX, gridY)
+    {
+        var arr = new Array();
+        for(var cellX = 0; cellX < 3; cellX++)
+        {
+            for(var cellY = 0; cellY < 3; cellY++)
+            {
+                arr.push(this.grid[gridX][gridY][cellX][cellY]);
+            }
+        }
+        return arr;
+    }
+
+    _getRandomCell()
+    {
+        var gPos = Math.floor(Math.random() * 9);
+        var gridX = Math.floor(gPos / 3);
+        var gridY = gPos % 3;
+        var cPos = Math.floor(Math.random() * 9);
+        var cellX = Math.floor(cPos / 3);
+        var cellY = cPos % 3;
+
+        return this.grid[gridX][gridY][cellX][cellY];
+    }
+
+    _getRow(gridY, cellY)
+    {
+        var arr = new Array();
+        for(var gridX = 0; gridX < 3; gridX++)
+        {
+            for(var cellX = 0; cellX < 3; cellX++)
+            {
+                arr.push(this.grid[gridX][gridY][cellX][cellY]);
+            }
+        }
+        return arr;
     }
 }
 
@@ -466,7 +614,8 @@ class SudokuControls
         this.countInput = document.createElement("input");
         this.countInput.setAttribute("type", "range");
         this.countInput.setAttribute("min", 2);
-        this.countInput.setAttribute("min", 80);
+        this.countInput.setAttribute("max", 80);
+        this.countInput.value = 40;
 
         this.countLabel.append(this.countInput);
         this.upperControls.append(this.countLabel);
