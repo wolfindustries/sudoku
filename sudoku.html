@@ -164,8 +164,12 @@ class Sudoku {
         this.grid[gridX][gridY][cellX][cellY] = cell;
     }
 
-    preAssignValue(value)
+    preAssignValue(value, overallDepth = 0)
     {
+        if(overallDepth > 5) {
+            console.log("nah dawg");
+            return false;
+        }
         var grids = new Array();
         var cells = new Array();
         for(var i = 0; i < 9; i++)
@@ -184,7 +188,7 @@ class Sudoku {
             var cPos = Math.floor(Math.random() * cells.length);
             var cY = Math.floor(cells[cPos] / 3);
             var cX = cells[cPos] % 3;
-            console.log(grids[gPos] + " " + gX + "," + gY + " | " + cells[cPos] + " " + cX + "," + cY);
+            //console.log(grids[gPos] + " " + gX + "," + gY + " | " + cells[cPos] + " " + cX + "," + cY);
 
             if(this.grid[gX][gY][cX][cY].currentValue == 0)
             {
@@ -221,8 +225,11 @@ class Sudoku {
 
         if(stackDepth > 29) 
         {
+            this.clearValueFromBoard(value);
+            this.preAssignValue(value, overallDepth++);
             console.log("error out due to stack-depth");
         }
+        return true;
     }
 
     checkColFor(gX, cX, val)
@@ -272,6 +279,24 @@ class Sudoku {
         return true;
     }
 
+    clearValueFromBoard(value)
+    {
+        console.log("clearing " + value);
+        for(var i = 0; i < 9; i++)
+        {
+            var gX = Math.floor(i / 3);
+            var gY = i % 3;
+            for(var j = 0;  j < 9; j++) {
+                var cX = Math.floor(j / 3);
+                var cY = j % 3;
+                if(this.grid[gX][gY][cX][cY].currentValue == value)
+                {
+                    this.grid[gX][gY][cX][cY].setCurrentValue(0);
+                }
+            }
+        }
+    }
+
     populateBoard()
     {
         var sectionVals = Array();
@@ -279,13 +304,24 @@ class Sudoku {
         {
             sectionVals.push(i);
         }
+        var clearedVals = Array();
 
         while(sectionVals.length > 0) {
             var randomValue = Math.floor(Math.random() * sectionVals.length);
 
-            this.preAssignValue(sectionVals[randomValue]);
-
-            sectionVals.splice(randomValue, 1);
+            if(this.preAssignValue(sectionVals[randomValue], 0))
+            {
+                console.log("assigned " + sectionVals[randomValue]);
+                clearedVals.push(sectionVals[randomValue]);
+                sectionVals.splice(randomValue, 1);
+            }
+            else
+            {
+                console.log("removing " + clearedVals[clearedVals.length - 1] + " and trying again")
+                this.clearValueFromBoard(clearedVals[clearedVals.length - 1]);
+                sectionVals.push(clearedVals[clearedVals.length - 1]);
+                sectionVals.pop();
+            }
         }
     }
 
