@@ -17,7 +17,7 @@
         div#upperControls {
             display: grid;
             grid-auto-flow: row;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
         }
 
         div#upperControls label {
@@ -95,15 +95,15 @@
             text-align: center;
         }
 
-        div.cell p.display.assigned {
+        div.cell.assignable p.display {
             color:blue;
         }
 
-        div.cell p.display.fixed {
+        div.cell.fixed p.display {
             color:#000;;
         }
 
-        div.cell p.display.error {
+        div.cell.error p.display {
             color:red;
         }
 
@@ -152,37 +152,49 @@ class Cell
         this.display.setAttribute("class", "display");
         this.div.append(this.display);
 
-        this.hint = document.createElement("p");
-        this.hint.innerText = gridX + "," + gridY + " " + cellX + "," + cellY;
-        this.hint.setAttribute("class", "hint");
-        this.div.append(this.hint);
+        //this.hint = document.createElement("p");
+        //this.hint.innerText = gridX + "," + gridY + " " + cellX + "," + cellY;
+        //this.hint.setAttribute("class", "hint");
+        //this.div.append(this.hint);
 
         this.gridX = gridX;
         this.gridY = gridY;
         this.cellX = cellX;
         this.cellY = cellY;
 
-        this.playerCanChange = true;
+        this.canChange = true;
         this.currentValue = "";
         this.setCurrentValue("");
 
         this.div.addEventListener("click", () => {
-            sudoku.clickOnCell(gridX, gridY, cellX, cellY);
+            this.sudoku.clickOnCell(gridX, gridY, cellX, cellY);
         })
     }
 
-    setCurrentValue(val)
+    setCurrentValue(value)
     {
-        if(this.playerCanChange)
+        if(this.canChange)
         {
-            this.currentValue = val;
-            this.display.innerText = "" + val;
+            this.currentValue = value;
+            this.display.innerText = "" + value;
         }
     }
 
     setAdjacentSelected()
     {
         this._addClass("lowlight");
+    }
+
+    setError(bool)
+    {
+        if(bool)
+        {
+            this._addClass("error");
+        }
+        else
+        {
+            this._removeClass("error");
+        }
     }
 
     setSelected() 
@@ -197,9 +209,19 @@ class Cell
         this._removeClass("lowlight");
     }
 
-    setPlayerCanChange(val)
+    setCanChange(value)
     {
-        this.playerCanChange = val;
+        this.canChange = value;
+        if(value == true)
+        {
+            this._removeClass("fixed");
+            this._addClass("assignable");
+        }
+        else
+        {
+            this._removeClass("assignable");
+            this._addClass("fixed");
+        }
     }
 
     _addClass(className)
@@ -248,11 +270,13 @@ class Sudoku
 
         this.upperControls = upperControls;
         this.lowerControls = lowerControls;
-        this.controls = new SudokuControls(this.upperControls, this.lowerControls);
+        this.controls = new SudokuControls(this.upperControls, this.lowerControls, this);
 
         this.currentCell = null;
 
+        this.building = true;
         this.build();
+        this.building = false;
 
         this.bindEventHandlers();
     }
@@ -260,11 +284,21 @@ class Sudoku
     bindEventHandlers()
     {
         document.addEventListener("keydown", (e) => {
-            if(e.key >= 0 && e.key <= 9)
+            console.log(e.key);
+            if(e.key >= 1 && e.key <= 9)
             {
                 if(this.currentCell != null)
                 {
-                    this.currentCell.setCurrentValue(e.key)
+                    this.currentCell.setCurrentValue(e.key);
+                    this.checkForErrors(this.currentCell);
+                }
+            }
+            else if(e.key == "Delete" || e.key == "Backspace" || e.key == 0)
+            {
+                if(this.currentCell != null)
+                {
+                    this.currentCell.setCurrentValue("");
+                    this.checkForErrors(this.currentCell);
                 }
             }
         })
@@ -335,6 +369,7 @@ class Sudoku
 
             if(cell.currentValue != "")
             {
+                cell.setCanChange(true);
                 cell.setCurrentValue("");
                 tilesToRemove--;
             }
@@ -342,57 +377,75 @@ class Sudoku
         }
     }
 
-    checkColFor(gridX, cellX, val)
+    checkColFor(gridX, cellX, value)
     {
-        var cells = this._getCol(gridX, cellX);
-
-        cells.forEach(cell => {
-            this.buildStepsCount++;
+        for(var i = 0; i < 9; i++)
+        {
+            var gridY = Math.floor(i / 3);
+            var cellY = i % 3;
             
-            if(cell.currentValue == val)
+            if(this.grid[gridX][gridY][cellX][cellY].currentValue == value)
             {
                 return false;
             }
+        }
+        return true;
+    }
+
+    checkForErrors(cell)
+    {
+        var cells = new Array();        
+        cells.push(...this._getRow(cell.gridY, cell.cellY));
+        cells.push(...this._getCol(cell.gridX, cell.cellX));
+        cells.push(...this._getGrid(cell.gridX, cell.gridY));
+
+        var currentCellValue = cell.currentValue;
+        
+        cells.every(iCell => {
+            if(iCell.currentValue == cell.currentValue)
+            {
+                if(!this._isSameCell(iCell, cell))
+                {
+                    cell.setError(true);
+                }
+            }
         })
+    }
+
+    checkGridFor(gridX, gridY, value) 
+    {
+        for(var i = 0; i < 9; i++)
+        {
+            var cellY = Math.floor(i / 3);
+            var cellX = i % 3;
+            
+            if(this.grid[gridX][gridY][cellX][cellY].currentValue == value)
+            {
+                return false;
+            }
+        }
 
         return true;
     }
 
-    checkGridFor(gridX, gridY, val) 
+    checkRowFor(gridY, cellY, value)
     {
-        var cells = this._getGrid(gridX, gridY);
-
-        cells.forEach(cell => {
-            this.buildStepsCount++;
+        for(var i = 0; i < 9; i++)
+        {
+            var gridX = Math.floor(i / 3);
+            var cellX = i % 3;
             
-            if(cell.currentValue == val)
+            if(this.grid[gridX][gridY][cellX][cellY].currentValue == value)
             {
                 return false;
             }
-        })
-        
-        return true;
-    }
-
-    checkRowFor(gridY, cellY, val)
-    {
-        var cells = this._getRow(gridY, cellY);
-        
-        cells.forEach(cell => {
-            this.buildStepsCount++;
-
-            if(cell.currentValue == val)
-            {
-                return false;
-            }
-        })
+        }
 
         return true;
     }
 
     clearValueFromBoard(value)
     {
-        //console.log("clearing " + value);
         for(var i = 0; i < 9; i++)
         {
             var gridX = Math.floor(i / 3);
@@ -400,9 +453,12 @@ class Sudoku
             for(var j = 0;  j < 9; j++) {
                 var cellX = Math.floor(j / 3);
                 var cellY = j % 3;
-                if(this.grid[gridX][gridY][cellX][cellY].currentValue == value)
+
+                var cell = this.grid[gridX][gridY][cellX][cellY];
+                if(cell.currentValue == value)
                 {
-                    this.grid[gridX][gridY][cellX][cellY].setCurrentValue("");
+                    cell.setCanChange(true);
+                    cell.setCurrentValue("");
                 }
                 this.buildStepsCount++;
             }
@@ -411,7 +467,6 @@ class Sudoku
 
     clickOnCell(gridX, gridY, cellX, cellY)
     {
-        console.log(gridX + " " + gridY);
         this._doThingToAllTiles(this._clearHighlightsAndLowlights);
 
         var cells = new Array();
@@ -438,7 +493,6 @@ class Sudoku
         }
 
         var stackDepth = 0;
-        //console.log("assigning " + value);
 
         while(stackDepth < 60 && grids.length > 0 && cells.length > 0) {
             var gPos = Math.floor(Math.random() * grids.length);
@@ -448,9 +502,8 @@ class Sudoku
             var cellY = Math.floor(cells[cPos] / 3);
             var cellX = cells[cPos] % 3;
             this.buildStepsCount++;
-            //console.log(grids[gPos] + " " + gridX + "," + gridY + " | " + cells[cPos] + " " + cellX + "," + cellY);
 
-            if(this.grid[gridX][gridY][cellX][cellY].currentValue == 0)
+            if(this.grid[gridX][gridY][cellX][cellY].currentValue == "")
             {
                 if(this.checkGridFor(gridX, gridY, value))
                 {
@@ -459,13 +512,24 @@ class Sudoku
                         if(this.checkRowFor(gridY, cellY, value)) {
                             var cell = this.grid[gridX][gridY][cellX][cellY];
                             cell.setCurrentValue(value);
+                            cell.setCanChange(false);
 
-                            //console.log("remove " + grids[gPos] + " from grid");
                             grids.splice(gPos, 1);
-                            //console.log("remove " + cells[cPos] + " from cells");
                             cells.splice(cPos, 1);
                         }
+                        else
+                        {
+                            console.log("row dupe " + gridY + " " + cellY + " " + value);
+                        }
                     }
+                    else
+                    {
+                        console.log("col dupe " + gridX + " " + cellX + " " + value);
+                    }
+                }
+                else
+                {
+                    console.log("grid dupe");
                 }
             }
 
@@ -474,19 +538,16 @@ class Sudoku
 
         if(stackDepth > 59) 
         {
-            //console.log("error out due to stack-depth");
             this.clearingCount++;
             this.clearValueFromBoard(value);
 
             overallDepth++;
             if(overallDepth >= 5)
             {
-                //console.log("number limit reached");
                 return false;
             }
             else
             {
-                //console.log("trying number again");
                 return this.preAssignValue(value, overallDepth += 1);
             }
         }
@@ -508,20 +569,28 @@ class Sudoku
 
             if(this.preAssignValue(sectionVals[randomValue], 0))
             {
-                //console.log("assigned " + sectionVals[randomValue]);
                 clearedVals.push(sectionVals[randomValue]);
                 sectionVals.splice(randomValue, 1);
             }
             else
             {
-                //console.log("removing " + clearedVals[clearedVals.length - 1] + " and trying again");
                 this.clearValueFromBoard(clearedVals[clearedVals.length - 1]);
                 sectionVals.push(clearedVals[clearedVals.length - 1]);
                 clearedVals.pop();
             }
         }
+    }
 
-        //console.log("done building board with " + this.buildStepsCount + " steps, " + this.assigningCount + " assigns, " + this.clearingCount + " clears");
+    rebuild()
+    {
+        console.log("start a new game");
+        //reset clock
+    }
+
+    restart()
+    {
+        console.log("clear this to default");
+        //reset clock
     }
 
     _clearHighlightsAndLowlights(el)
@@ -596,12 +665,27 @@ class Sudoku
         }
         return arr;
     }
+
+    _isSameCell(cell1, cell2)
+    {
+        if(cell1.gridX == cell2.gridX
+            && cell1.gridY == cell2.gridY
+            && cell1.cellX == cell2.cellX
+            && cell1.cellY == cell2.cellY
+        )
+        {
+            return true;
+        }
+        return false;
+    }
 }
 
 class SudokuControls
 {
-    constructor(upperControls, lowerControls, sudokuController)
+    constructor(upperControls, lowerControls, sudoku)
     {
+        this.sudoku = sudoku;
+
         this.div = document.createElement("div");
         this.div.setAttribute("class", "tileSlider");
 
@@ -615,10 +699,26 @@ class SudokuControls
         this.countInput.setAttribute("type", "range");
         this.countInput.setAttribute("min", 2);
         this.countInput.setAttribute("max", 80);
-        this.countInput.value = 40;
+        this.countInput.value = 2;
 
         this.countLabel.append(this.countInput);
         this.upperControls.append(this.countLabel);
+
+        this.rebuildLabel = document.createElement("label");
+        this.rebuildLabel.innerHTML = "New Game:";
+
+        this.rebuildInput = document.createElement("input");
+        this.rebuildInput.setAttribute("type", "button");
+        this.rebuildInput.value = "New Game";
+        this.rebuildInput.addEventListener("click", () => {
+            if(confirm("Are you sure you want to generate a new board?"))
+            {
+                this.sudoku.rebuild();
+            }            
+        });
+
+        this.rebuildLabel.append(this.rebuildInput);
+        this.upperControls.append(this.rebuildLabel);
 
         this.refreshLabel = document.createElement("label");
         this.refreshLabel.innerHTML = "Reset Board:";
@@ -626,6 +726,12 @@ class SudokuControls
         this.refreshInput = document.createElement("input");
         this.refreshInput.setAttribute("type", "button");
         this.refreshInput.value = "Reset";
+        this.refreshInput.addEventListener("click", () => {
+            if(confirm("Are you sure you want to restart this board?"))
+            {
+                this.sudoku.restart();
+            }            
+        })
 
         this.refreshLabel.append(this.refreshInput);
         this.upperControls.append(this.refreshLabel);
