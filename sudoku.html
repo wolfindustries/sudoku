@@ -40,6 +40,12 @@
             border-radius:5px;
         }
 
+        div#lowerControls div.subControl.grey
+        {
+            background-color:#ccc;
+            color:#888;
+        }
+
         div#lowerControls p.primary {
             text-align: center;
             font-size: 2.4em;
@@ -60,8 +66,8 @@
         }
 
         div#main {
-            width:600px;
-            height:600px;
+            width:900px;
+            height:900px;
         }
 
         div#main, div.section {
@@ -91,7 +97,7 @@
         div.cell p.display {
             margin:0;
             padding:0;
-            font-size:2em;  
+            font-size:3em;  
             text-align: center;
             user-select:none;
         }
@@ -250,12 +256,38 @@ class ControlButton
         this.text.classList.add("primary");
         this.text.innerHTML = this.index;
 
+        this.numberLeft = 9;
+
         this.remaining = document.createElement("p");
         this.remaining.classList.add("remaining");
-        this.remaining.innerHTML = this.index;
+        this.remaining.innerHTML = this.numberLeft;
 
         this.div.append(this.text);
         this.div.append(this.remaining);
+    }
+
+    decrementNumberLeft()
+    {
+        this.numberLeft--;
+        this.updateNumberLeft();
+    }
+
+    resetNumberLeft()
+    {
+        this.numberLeft = 9;
+        this.updateNumberLeft();
+    }
+
+    updateNumberLeft()
+    {
+        this.remaining.innerHTML = this.numberLeft;
+        if(this.numberLeft == 0) {
+            this.div.classList.add("grey");
+        }
+        else
+        {
+            this.div.classList.remove("grey");
+        }
     }
 }
 
@@ -280,7 +312,12 @@ class Sudoku
         this.build();
         this.building = false;
 
-        this.bindEventHandlers();
+        this.emptyCells = 0;
+        this.errorCells = 0;
+        this.controls.resetCounts();
+        this.checkForWin();
+
+        this.bindEventHandlers();        
     }
 
     bindEventHandlers()
@@ -292,6 +329,7 @@ class Sudoku
                 {
                     this.currentCell.setCurrentValue(e.key);
                     this.checkForErrors(this.currentCell);
+                    this.checkForWin();
                 }
             }
             else if(e.key == "Delete" || e.key == "Backspace" || e.key == 0)
@@ -307,7 +345,7 @@ class Sudoku
         document.addEventListener("click", (e) => {
             if(!this.parent.contains(event.target))
             {
-                this._doThingToAllTiles(this._clearHighlightsAndLowlights);
+                this._doThingToAllCells(this._clearHighlightsAndLowlights);
                 this.currentCell = null;
             }
         })
@@ -362,9 +400,9 @@ class Sudoku
 
     adjustToDifficulty()
     {
-        var tilesToRemove = this.controls.countInput.value;
+        var celllsToRemove = this.controls.countInput.value;
 
-        while(tilesToRemove > 0)
+        while(celllsToRemove > 0)
         {
             var cell = this._getRandomCell();
 
@@ -372,7 +410,7 @@ class Sudoku
             {
                 cell.setCanChange(true);
                 cell.setCurrentValue("");
-                tilesToRemove--;
+                celllsToRemove--;
             }
             this.buildStepsCount++;
         }
@@ -411,6 +449,22 @@ class Sudoku
                 }
             }
         })
+    }
+
+    checkForWin()
+    {
+        this.emptyCells = 0;
+        this.errorCells = 0;
+        this.controls.resetCounts();
+        this._doThingToAllCells(this._updateConditions);
+
+        if(this.emptyCells == 0 && this.errorCells == 0)
+        {
+            setTimeout(() => {  //just...because
+                alert("you have won!");
+            },1);
+            
+        }
     }
 
     checkGridFor(gridX, gridY, value) 
@@ -468,7 +522,7 @@ class Sudoku
 
     clickOnCell(gridX, gridY, cellX, cellY)
     {
-        this._doThingToAllTiles(this._clearHighlightsAndLowlights);
+        this._doThingToAllCells(this._clearHighlightsAndLowlights);
 
         var cells = new Array();
         cells.push(...this._getRow(gridY, cellY));
@@ -572,14 +626,31 @@ class Sudoku
 
     rebuild()
     {
-        console.log("start a new game");
-        //reset clock
+        this._doThingToAllCells(this._clearAllCells);
+
+        this.populateBoard();
+        this.adjustToDifficulty();
+        this.checkForWin();
     }
 
     restart()
     {
-        console.log("clear this to default");
-        //reset clock
+        this._doThingToAllCells(this._clearCellIfPlayerSet);
+        this.checkForWin();
+    }
+
+    _clearAllCells(el)
+    {
+        el.setCanChange(true);
+        el.setCurrentValue("");
+    }
+
+    _clearCellIfPlayerSet(el)
+    {
+        if(!el.div.classList.contains("fixed"))
+        {
+            el.setCurrentValue("");
+        }
     }
 
     _clearHighlightsAndLowlights(el)
@@ -587,7 +658,7 @@ class Sudoku
         el.setUnselected();
     }
 
-    _doThingToAllTiles(action)
+    _doThingToAllCells(action)
     {
         for(var gPos = 0; gPos < 9; gPos++)
         {
@@ -599,7 +670,7 @@ class Sudoku
                 var cellX = Math.floor(cPos / 3);
                 var cellY = cPos % 3;
 
-                action(this.grid[gridX][gridY][cellX][cellY]);
+                action(this.grid[gridX][gridY][cellX][cellY], this);
             }            
         }
     }
@@ -667,6 +738,25 @@ class Sudoku
         }
         return false;
     }
+
+    _updateConditions(el, sudoku)
+    {
+        if(el.currentValue == "")
+        {
+            sudoku.emptyCells++;
+        }
+        else
+        {
+            if(el.div.classList.contains("error"))
+            {
+                sudoku.errorCells++;
+            }
+            else
+            {
+                sudoku.controls.decrementCount(el.currentValue);
+            }
+        }
+    }
 }
 
 class SudokuControls
@@ -676,7 +766,7 @@ class SudokuControls
         this.sudoku = sudoku;
 
         this.div = document.createElement("div");
-        this.div.setAttribute("class", "tileSlider");
+        this.div.setAttribute("class", "celllSlider");
 
         this.upperControls = upperControls;
         this.lowerControls = lowerControls;
@@ -687,7 +777,7 @@ class SudokuControls
         this.countInput = document.createElement("input");
         this.countInput.setAttribute("type", "range");
         this.countInput.setAttribute("min", 2);
-        this.countInput.setAttribute("max", 80);
+        this.countInput.setAttribute("max", 65);
         this.countInput.value = 40;
 
         this.countLabel.append(this.countInput);
@@ -700,7 +790,7 @@ class SudokuControls
         this.rebuildInput.setAttribute("type", "button");
         this.rebuildInput.value = "New Game";
         this.rebuildInput.addEventListener("click", () => {
-            if(confirm("Are you sure you want to generate a new board?"))
+            if(confirm("Generate a new board at " + this.getDifficultyString() + " difficulty?"))
             {
                 this.sudoku.rebuild();
             }            
@@ -710,11 +800,11 @@ class SudokuControls
         this.upperControls.append(this.rebuildLabel);
 
         this.refreshLabel = document.createElement("label");
-        this.refreshLabel.innerHTML = "Reset Board:";
+        this.refreshLabel.innerHTML = "Restart:";
 
         this.refreshInput = document.createElement("input");
         this.refreshInput.setAttribute("type", "button");
-        this.refreshInput.value = "Reset";
+        this.refreshInput.value = "Restart";
         this.refreshInput.addEventListener("click", () => {
             if(confirm("Are you sure you want to restart this board?"))
             {
@@ -725,14 +815,51 @@ class SudokuControls
         this.refreshLabel.append(this.refreshInput);
         this.upperControls.append(this.refreshLabel);
 
+        this.buttonCounts = new Array();
+        
+
         this.buttons = new Array();
         for(var i = 1; i < 10; i++) {
             var button = new ControlButton(i);
-            this.buttons.push(i);
+            this.buttons.push(button);
             this.lowerControls.append(button.div);
         }
+        this.resetCounts();
 
         return this;
+    }
+
+    getDifficultyString()
+    {
+        if(this.countInput.value < 30)
+        {
+            return "easy";
+        }
+        else if(this.countInput.value < 45)
+        {
+            return "medium";
+        }
+        else if(this.countInput.value < 50)
+        {
+            return "hard";
+        }
+        else
+        {
+            return "very hard";
+        }
+    }
+
+    decrementCount(i)
+    {
+        this.buttons[i-1].decrementNumberLeft();
+    }
+
+    resetCounts()
+    {
+        for(var i = 0; i < 9; i++)
+        {
+            this.buttons[i].resetNumberLeft();
+        }
     }
 }
 </script>
